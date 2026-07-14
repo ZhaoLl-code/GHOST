@@ -1,6 +1,7 @@
 # GHOST: Geometry-Guided Hallucination of Opaque Surface Textures
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.11118-b31b1b.svg)](https://arxiv.org/abs/2607.11118)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-yellow)](https://huggingface.co/Langxu/GHOST)
 
 [ICML 2026] Official implementation of **GHOST**, a geometry-guided preprocessing framework that transforms transparent regions into opaque, structurally consistent RGB images to improve downstream depth estimation and 3D reconstruction — without retraining the target models.
 
