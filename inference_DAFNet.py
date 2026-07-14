@@ -59,8 +59,8 @@ def inference(rgb_path, mask_path, normal_path):
         pred_kappa = output_dict["pred_kappa"]
 
         pred_norm *= -1
-        pred_norm[:, :, :, 0] *= -1
-        pred_norm = (pred_norm + 1) / 2
+        # pred_norm[:, 0, :, :] *= -1
+        pred_norm = (pred_norm + 1) / 2.0
         pred_norm = pred_norm * mask + (1 - mask) * rgb
         pred_norm = pred_norm.squeeze(0).cpu().numpy().transpose((1, 2, 0))
         pred_norm *= 255

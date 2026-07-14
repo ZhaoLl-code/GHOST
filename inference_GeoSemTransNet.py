@@ -24,7 +24,28 @@ def read_exr(exr_path):
         channel.shape = (size[1], size[0])
         allchannels.append(channel)
     exr_arr = np.array(allchannels)
+    print('Exr shape:', exr_arr.shape, exr_arr.dtype, exr_arr.min(), exr_arr.max())
+    rgb_arr = exr_arr * -1
+    rgb_arr[0, :, :] *= -1
+    rgb_arr = (((rgb_arr + 1) / 2.0) * 255).astype(np.uint8).transpose(1, 2, 0)
+    cv2.imwrite("normal_translated.jpg", rgb_arr)
     return exr_arr
+
+def read_normal_map(image_path):
+    img_array = cv2.imread(image_path).astype(np.float32)
+    if len(img_array.shape) == 2:
+        img_array = np.stack([img_array] * 3, axis=-1)
+
+    if img_array.shape[-1] > 3:
+        img_array = img_array[:, :, :3]
+
+    normal_vectors = (img_array / 255.0) * 2.0 - 1.0
+
+    norm = np.linalg.norm(normal_vectors, axis=-1, keepdims=True)
+    norm = np.where(norm == 0, 1, norm)
+    normal_vectors = normal_vectors / norm
+
+    return normal_vectors.transpose((2, 0, 1))
 
 def normalize_normals(normals, eps=1e-8):
     magnitude = torch.norm(normals, dim=1, keepdim=True)
@@ -60,10 +81,14 @@ def inference(rgb_path, mask_path, normal_path, generated_rgb_path):
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-    normal = read_exr(normal_path)
-    normal = normal.transpose((1, 2, 0))
-    normal *= -1
-    normal[:, :, 0] *= -1
+    if normal_path.endswith('.exr'):
+        normal = read_exr(normal_path)
+        normal = normal.transpose((1, 2, 0))
+        normal *= -1
+        normal[:, :, 0] *= -1
+    else:
+        normal = read_normal_map(normal_path)
+        normal = normal.transpose((1, 2, 0))
 
     source_H, source_W = bgr.shape[:2]
 
@@ -81,10 +106,12 @@ def inference(rgb_path, mask_path, normal_path, generated_rgb_path):
     normal = torch.from_numpy(normal).float().cuda().unsqueeze(0)
     normal = normalize_normals(normal)
 
+    print(rgb.shape, mask.shape)
     with torch.no_grad():
         pred_alpha, pred_fg = decompose_model(rgb, mask)
         feats = dino_model.get_intermediate_layers(rgb, n=range(n_layers), reshape=True, norm=True)
         feats = feats[-1]
+        print(feats.shape)
 
     generated_rgb = geoSemTransNet(rgb, mask, normal, pred_alpha, pred_fg, feats)
     generated_rgb = generated_rgb.detach().cpu().numpy().squeeze(0)
@@ -98,6 +125,6 @@ def inference(rgb_path, mask_path, normal_path, generated_rgb_path):
 if __name__ == '__main__':
     rgb_path = r'images\rgb.jpg'
     mask_path = r'images\mask.png'
-    normal_path = r'images\normal.exr'
+    normal_path = r'F:\GHOST\normal_translated.jpg'
     generated_rgb_path = r"generated_rgb.jpg"
     inference(rgb_path, mask_path, normal_path, generated_rgb_path)
